@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>巴士到站時間</title>
+    <title>Kaho Meow Bus 巴士站時間</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 10px; text-align: center; }
-        input, button { padding: 12px; margin: 5px; font-size: 16px; width: 90%; }
+        input, select, button { padding: 12px; margin: 5px; font-size: 16px; width: 90%; }
         .suggestions { text-align: left; max-height: 200px; overflow-y: auto; background: #f0f0f0; position: absolute; width: 90%; display: none; }
         .suggestions div { padding: 10px; cursor: pointer; }
         .suggestions div:hover { background: #ddd; }
     </style>
     <script>
-        let stopNameMap = {};
+        let stopNameMap = {};  
 
         async function loadStopsData() {
             const response = await fetch("https://data.etabus.gov.hk/v1/transport/kmb/stop");
@@ -20,6 +20,20 @@
             
             for (let stop of data.data) {
                 stopNameMap[stop.name_tc] = stop.stop;
+            }
+
+            populateDropdown();
+        }
+
+        function populateDropdown() {
+            const dropdown = document.getElementById("stopDropdown");
+            dropdown.innerHTML = "<option value=''>選擇巴士站</option>";
+
+            for (const stop in stopNameMap) {
+                const option = document.createElement("option");
+                option.value = stopNameMap[stop];
+                option.textContent = stop;
+                dropdown.appendChild(option);
             }
         }
 
@@ -53,11 +67,16 @@
             suggestionsDiv.style.display = "block";
         }
 
+        function getSelectedStopId() {
+            let stopName = document.getElementById("stopInput").value || 
+                           document.getElementById("stopDropdown").value;
+            return stopNameMap[stopName] || null;
+        }
+
         async function getETA() {
-            let stopName = document.getElementById("stopInput").value;
-            let stopId = stopNameMap[stopName];
+            let stopId = getSelectedStopId();
             if (!stopId) return;
-            
+
             const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`);
             const data = await response.json();
 
@@ -84,10 +103,11 @@
     </script>
 </head>
 <body>
-    <h1>巴士到站時間</h1>
+    <h1>Kaho Meow Bus 巴士站時間</h1>
     <label for="stopInput">輸入或選擇巴士站：</label>
     <input type="text" id="stopInput" onkeyup="showSuggestions()" placeholder="輸入巴士站名稱">
     <div id="suggestions" class="suggestions"></div>
+    <select id="stopDropdown"></select>
     <button onclick="getETA()">獲取預計時間</button>
     <div id="eta"></div>
 </body>

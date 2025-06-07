@@ -19,7 +19,7 @@
             const data = await response.json();
 
             for (let stop of data.data) {
-                stopNameMap[stop.stop] = stop.name_tc;
+                stopNameMap[stop.stop] = decodeURIComponent(escape(stop.name_tc)); // Properly handle encoding issues
             }
         }
 
@@ -41,8 +41,8 @@
 
                 if (!routeDestinations[route.route]) {
                     routeDestinations[route.route] = {
-                        outbound: route.dest_tc, 
-                        inbound: route.orig_tc   
+                        outbound: decodeURIComponent(escape(route.dest_tc)), 
+                        inbound: decodeURIComponent(escape(route.orig_tc))   
                     };
                 }
             }

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>巴士到站時間</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 10px; text-align: center; }
+        input, button { padding: 12px; margin: 5px; font-size: 16px; width: 90%; }
+        .suggestions { text-align: left; max-height: 200px; overflow-y: auto; background: #f0f0f0; position: absolute; width: 90%; display: none; }
+        .suggestions div { padding: 10px; cursor: pointer; }
+        .suggestions div:hover { background: #ddd; }
+    </style>
+    <script>
+        let stopNameMap = {};
+
+        async function loadStopsData() {
+            const response = await fetch("https://data.etabus.gov.hk/v1/transport/kmb/stop");
+            const data = await response.json();
+            
+            for (let stop of data.data) {
+                stopNameMap[stop.name_tc] = stop.stop;
+            }
+        }
+
+        function showSuggestions() {
+            let input = document.getElementById("stopInput").value.toLowerCase();
+            let suggestionsDiv = document.getElementById("suggestions");
+            suggestionsDiv.innerHTML = "";
+
+            if (!input) {
+                suggestionsDiv.style.display = "none";
+                return;
+            }
+
+            let matches = Object.keys(stopNameMap).filter(stop => stop.includes(input));
+
+            if (matches.length === 0) {
+                suggestionsDiv.style.display = "none";
+                return;
+            }
+
+            matches.forEach(match => {
+                let div = document.createElement("div");
+                div.textContent = match;
+                div.onclick = function () {
+                    document.getElementById("stopInput").value = match;
+                    suggestionsDiv.style.display = "none";
+                };
+                suggestionsDiv.appendChild(div);
+            });
+
+            suggestionsDiv.style.display = "block";
+        }
+
+        async function getETA() {
+            let stopName = document.getElementById("stopInput").value;
+            let stopId = stopNameMap[stopName];
+            if (!stopId) return;
+            
+            const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`);
+            const data = await response.json();
+
+            let etaText = "<h3>預計到達時間</h3><ul>";
+            data.data.forEach(eta => {
+                let etaTime = new Date(eta.eta);
+
+                if (!eta.eta || isNaN(etaTime.getTime())) {
+                    return; // Skip invalid ETA times
+                }
+
+                let hours = etaTime.getHours();
+                let minutes = etaTime.getMinutes().toString().padStart(2, '0'); // Ensure two-digit minutes
+                let countdown = Math.round((etaTime - new Date()) / 60000);
+                let destination = eta.dest_tc || "未知目的地"; // Show destination
+
+                etaText += `<li>🚌 路線 ${eta.route} ➝ ${hours}:${minutes} (${countdown} 分鐘後到達) ➝ 終點站: ${destination}</li>`;
+            });
+            etaText += "</ul>";
+            document.getElementById("eta").innerHTML = etaText;
+        }
+
+        document.addEventListener("DOMContentLoaded", loadStopsData);
+    </script>
+</head>
+<body>
+    <h1>巴士到站時間</h1>
+    <label for="stopInput">輸入或選擇巴士站：</label>
+    <input type="text" id="stopInput" onkeyup="showSuggestions()" placeholder="輸入巴士站名稱">
+    <div id="suggestions" class="suggestions"></div>
+    <button onclick="getETA()">獲取預計時間</button>
+    <div id="eta"></div>
+</body>
+</html>

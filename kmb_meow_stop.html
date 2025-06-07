@@ -10,6 +10,7 @@
         .suggestions { text-align: left; max-height: 200px; overflow-y: auto; background: #f0f0f0; position: absolute; width: 90%; display: none; }
         .suggestions div { padding: 10px; cursor: pointer; }
         .suggestions div:hover { background: #ddd; }
+        .eta-entry { margin-bottom: 15px; text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
     </style>
     <script>
         let stopDataMap = {};  
@@ -19,7 +20,7 @@
             const data = await response.json();
             
             for (let stop of data.data) {
-                let baseName = stop.name_tc.replace(/\(.*?\)/g, "").trim(); // Remove codes (e.g., (A12), (TM744))
+                let baseName = stop.name_tc.replace(/\(.*?\)/g, "").trim(); // Remove unnecessary codes
                 
                 if (!stopDataMap[baseName]) {
                     stopDataMap[baseName] = [];
@@ -82,7 +83,7 @@
             let stopEntries = getSelectedStopIds();
             if (stopEntries.length === 0) return;
 
-            let etaText = "<h3>預計到達時間</h3><ul>";
+            let etaText = "<h3>預計到達時間</h3>";
 
             for (let stopEntry of stopEntries) {
                 const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopEntry.id}`);
@@ -98,13 +99,12 @@
                     let hours = etaTime.getHours();
                     let minutes = etaTime.getMinutes().toString().padStart(2, '0'); // Ensure two-digit minutes
                     let countdown = Math.round((etaTime - new Date()) / 60000);
-                    let destination = eta.dest_tc || "未知目的地"; // Show destination
+                    let destination = eta.dest_tc || "未知目的地"; 
 
-                    etaText += `<li>📍 站點: ${stopEntry.fullName} | 🚌 路線 ${eta.route} ➝ ${hours}:${minutes} (${countdown} 分鐘後到達) ➝ 終點站: ${destination}</li>`;
+                    etaText += `<div class="eta-entry">📍 站點: ${stopEntry.fullName} |<br> 🚌 路線 ${eta.route} ➝ ${hours}:${minutes} (${countdown} 分鐘後到達) ➝ 終點站: ${destination}</div>`;
                 });
             }
 
-            etaText += "</ul>";
             document.getElementById("eta").innerHTML = etaText;
         }
 

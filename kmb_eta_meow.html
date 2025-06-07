@@ -6,8 +6,11 @@
     <title>Kaho Meow 巴士到站時間</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 10px; }
-        select, button { padding: 12px; margin: 5px; font-size: 16px; width: 100%; }
+        select, button, input { padding: 12px; margin: 5px; font-size: 16px; width: 100%; }
         h1 { font-size: 20px; text-align: center; }
+        #suggestions { background: #f1f1f1; border: 1px solid #ccc; max-height: 150px; overflow-y: auto; }
+        .suggestion-item { padding: 10px; cursor: pointer; }
+        .suggestion-item:hover { background: #ddd; }
     </style>
     <script>
         let stopNameMap = {}; 
@@ -19,7 +22,7 @@
             const data = await response.json();
 
             for (let stop of data.data) {
-                stopNameMap[stop.stop] = stop.name_tc; // Properly store Chinese bus stop names
+                stopNameMap[stop.stop] = stop.name_tc;
             }
         }
 
@@ -29,13 +32,17 @@
             
             let routeDropdown = document.getElementById("routeDropdown");
             routeDropdown.innerHTML = "<option value=''>選擇路線</option>";
+            
+            let routesArray = [];
 
             for (let route of data.data) {
                 if (!uniqueRoutes[route.route]) {
                     uniqueRoutes[route.route] = true; 
+                    routesArray.push(route.route);
+
                     let option = document.createElement("option");
                     option.value = route.route;
-                    option.textContent = route.route; // Show only the route number
+                    option.textContent = route.route;
                     routeDropdown.appendChild(option);
                 }
 
@@ -46,10 +53,32 @@
                     };
                 }
             }
+
+            document.getElementById("routeInput").addEventListener("input", function () {
+                let inputValue = this.value.toUpperCase();
+                let suggestions = document.getElementById("suggestions");
+                suggestions.innerHTML = "";
+
+                if (inputValue) {
+                    let filteredRoutes = routesArray.filter(route => route.startsWith(inputValue));
+
+                    filteredRoutes.forEach(route => {
+                        let div = document.createElement("div");
+                        div.classList.add("suggestion-item");
+                        div.textContent = route;
+                        div.onclick = function () {
+                            document.getElementById("routeInput").value = route;
+                            suggestions.innerHTML = "";
+                            loadDestinations(route);
+                        };
+                        suggestions.appendChild(div);
+                    });
+                }
+            });
         }
 
-        function loadDestinations() {
-            const route = document.getElementById("routeDropdown").value;
+        function loadDestinations(route = null) {
+            if (!route) route = document.getElementById("routeDropdown").value;
             let destinationDropdown = document.getElementById("destinationDropdown");
             destinationDropdown.innerHTML = "<option value=''>選擇方向</option>";
 
@@ -67,7 +96,7 @@
         }
 
         async function loadStops() {
-            const route = document.getElementById("routeDropdown").value;
+            const route = document.getElementById("routeDropdown").value || document.getElementById("routeInput").value;
             const direction = document.getElementById("destinationDropdown").value;
             if (!route || !direction) return;
 
@@ -80,14 +109,14 @@
             for (let stop of data.data) {
                 let option = document.createElement("option");
                 option.value = stop.stop;
-                option.textContent = stopNameMap[stop.stop] || stop.stop; // Properly display stop names
+                option.textContent = stopNameMap[stop.stop] || stop.stop;
                 stopDropdown.appendChild(option);
             }
         }
 
         async function getETA() {
             const stopId = document.getElementById("stopDropdown").value;
-            const route = document.getElementById("routeDropdown").value;
+            const route = document.getElementById("routeDropdown").value || document.getElementById("routeInput").value;
             if (!stopId || !route) return;
 
             const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/1`);
@@ -110,6 +139,14 @@
             document.getElementById("eta").innerHTML = etaList;
         }
 
+        function clearSelections() {
+            document.getElementById("routeDropdown").value = "";
+            document.getElementById("routeInput").value = "";
+            document.getElementById("destinationDropdown").innerHTML = "<option value=''>選擇方向</option>";
+            document.getElementById("stopDropdown").innerHTML = "<option value=''>選擇站點</option>";
+            document.getElementById("eta").innerHTML = "";
+        }
+
         async function initializePage() {
             await loadStopsData(); 
             loadRoutes(); 
@@ -119,7 +156,11 @@
 <body onload="initializePage()">
     <h1>Kaho Meow 巴士到站時間</h1>
     
-    <label for="routeDropdown">選擇巴士路線：</label>
+    <label for="routeInput">輸入巴士路線：</label>
+    <input type="text" id="routeInput" placeholder="例如 1, 2, 3">
+    <div id="suggestions"></div>
+
+    <label for="routeDropdown">或選擇巴士路線：</label>
     <select id="routeDropdown" onchange="loadDestinations()"></select>
 
     <label for="destinationDropdown">選擇目的地：</label>
@@ -128,6 +169,7 @@
     <label for="stopDropdown">選擇巴士站：</label>
     <select id="stopDropdown"></select>
     <button onclick="getETA()">獲取預計時間</button>
+    <button onclick="clearSelections()">清除選擇</button>
 
     <div id="eta"></div>
 </body>

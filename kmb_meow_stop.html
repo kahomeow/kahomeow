@@ -19,10 +19,12 @@
             const data = await response.json();
             
             for (let stop of data.data) {
-                if (!stopDataMap[stop.name_tc]) {
-                    stopDataMap[stop.name_tc] = [];
+                let baseName = stop.name_tc.replace(/\(.*?\)/g, "").trim(); // Remove codes (e.g., (A12), (TM744))
+                
+                if (!stopDataMap[baseName]) {
+                    stopDataMap[baseName] = [];
                 }
-                stopDataMap[stop.name_tc].push(stop.stop);
+                stopDataMap[baseName].push({ id: stop.stop, fullName: stop.name_tc });
             }
 
             populateDropdown();
@@ -77,13 +79,13 @@
         }
 
         async function getETA() {
-            let stopIds = getSelectedStopIds();
-            if (stopIds.length === 0) return;
+            let stopEntries = getSelectedStopIds();
+            if (stopEntries.length === 0) return;
 
             let etaText = "<h3>預計到達時間</h3><ul>";
 
-            for (let stopId of stopIds) {
-                const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`);
+            for (let stopEntry of stopEntries) {
+                const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopEntry.id}`);
                 const data = await response.json();
 
                 data.data.forEach(eta => {
@@ -98,7 +100,7 @@
                     let countdown = Math.round((etaTime - new Date()) / 60000);
                     let destination = eta.dest_tc || "未知目的地"; // Show destination
 
-                    etaText += `<li>🚌 路線 ${eta.route} ➝ ${hours}:${minutes} (${countdown} 分鐘後到達) ➝ 終點站: ${destination} ➝ 📍站點 ID: ${stopId}</li>`;
+                    etaText += `<li>📍 站點: ${stopEntry.fullName} | 🚌 路線 ${eta.route} ➝ ${hours}:${minutes} (${countdown} 分鐘後到達) ➝ 終點站: ${destination}</li>`;
                 });
             }
 
